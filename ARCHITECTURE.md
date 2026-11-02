@@ -199,7 +199,7 @@ All Connected Clients
 ## Security
 
 ### Authentication
-- API key authentication (Bearer token)
+- Operator login with signed HttpOnly session cookies and CSRF validation
 - Webhook signature verification
 - JWT support (future)
 

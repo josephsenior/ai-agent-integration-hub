@@ -1,15 +1,15 @@
-# Contributing to AI Agent Integration Hub
+﻿# Contributing to AI Agent Integration Hub
 
 Thank you for your interest in contributing! This document provides guidelines and instructions for contributing to this project.
 
-## 🤝 Code of Conduct
+##  Code of Conduct
 
 - Be respectful and inclusive
 - Welcome newcomers and help them learn
 - Focus on constructive feedback
 - Respect different viewpoints and experiences
 
-## 🚀 Getting Started
+##  Getting Started
 
 1. **Fork the repository**
 2. **Clone your fork**:
@@ -30,7 +30,7 @@ Thank you for your interest in contributing! This document provides guidelines a
    git checkout -b feature/your-feature-name
    ```
 
-## 📝 Development Guidelines
+##  Development Guidelines
 
 ### Code Style
 
@@ -61,7 +61,7 @@ refactor: Simplify integration adapter interface
 test: Add tests for Discord integration
 ```
 
-## 🔄 Pull Request Process
+##  Pull Request Process
 
 1. **Update documentation** if needed
 2. **Add tests** for new functionality
@@ -82,7 +82,7 @@ test: Add tests for Discord integration
 - [ ] Commit messages are clear
 - [ ] Integration tested (if adding new integration)
 
-## 🐛 Reporting Bugs
+##  Reporting Bugs
 
 When reporting bugs, please include:
 
@@ -94,7 +94,7 @@ When reporting bugs, please include:
 - **Logs**: Relevant error messages or logs
 - **Integration**: Which integration (Slack/Discord/Email/etc.) if applicable
 
-## 💡 Suggesting Features
+##  Suggesting Features
 
 Feature suggestions are welcome! Please:
 
@@ -104,7 +104,7 @@ Feature suggestions are welcome! Please:
 - Provide examples if possible
 - For new integrations, describe the API/service
 
-## 🔌 Adding New Integrations
+##  Adding New Integrations
 
 To add a new integration:
 
@@ -126,7 +126,7 @@ To add a new integration:
    - Add env variables to `env.example`
    - Update config model if needed
 
-## 📚 Documentation
+##  Documentation
 
 - Keep README.md updated
 - Add docstrings to new code
@@ -134,7 +134,7 @@ To add a new integration:
 - Include code examples in documentation
 - Update QUICKSTART.md for new features
 
-## 🏗️ Architecture Guidelines
+##  Architecture Guidelines
 
 When adding new features:
 
@@ -146,7 +146,7 @@ When adding new features:
 - Use async/await for I/O operations
 - Handle errors gracefully
 
-## 🔒 Security Considerations
+##  Security Considerations
 
 - Never commit API keys or secrets
 - Use environment variables for sensitive data
@@ -154,9 +154,9 @@ When adding new features:
 - Implement proper authentication
 - Follow OWASP guidelines
 
-## 📞 Questions?
+##  Questions?
 
 Feel free to open an issue for questions or discussions. We're happy to help!
 
-Thank you for contributing! 🎉
+Thank you for contributing! 
 
