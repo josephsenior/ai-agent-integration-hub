@@ -23,7 +23,7 @@ redis==5.0.1
 hiredis==2.2.3
 
 # WebSocket
-websockets==13.1
+websockets==17.3
 python-socketio==5.10.0
 
 # Integration SDKs
