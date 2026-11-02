@@ -10,6 +10,7 @@ from .config import settings
 
 class Base(DeclarativeBase):
     """Base class for database models."""
+
     pass
 
 
@@ -43,4 +44,3 @@ async def init_db():
     """Initialize database tables."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-

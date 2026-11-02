@@ -28,7 +28,9 @@ Edit `.env` with your configuration:
 ```env
 # Required
 GEMINI_API_KEY=your_Gemini_key_here
-API_SECRET_KEY=your-secret-key-here
+OPERATOR_USERNAME=operator
+OPERATOR_PASSWORD_HASH=paste-the-hash-generated-by-the-password-tool
+SESSION_SECRET_KEY=replace-with-a-unique-random-secret-at-least-32-bytes
 
 # Optional (for integrations)
 SLACK_BOT_TOKEN=xoxb-your-token
@@ -62,12 +64,22 @@ python -c "from backend.core.database import init_db; import asyncio; asyncio.ru
 uvicorn backend.api.main:app --reload --port 8000
 ```
 
-### 6. Start Frontend (Optional)
+### 6. Start the Event Worker
+
+In a second backend terminal:
+
+```bash
+python -m backend.worker
+```
+
+### 7. Start Frontend (Optional)
 
 In another terminal:
 
 ```bash
-streamlit run frontend/app.py
+cd frontend-nextjs
+npm ci
+npm run dev
 ```
 
 ## Usage
@@ -76,42 +88,32 @@ streamlit run frontend/app.py
 
 #### Send a Message to Agent
 
-```bash
-curl -X POST "http://localhost:8000/api/v1/agents/chat" \
-  -H "Authorization: Bearer your-secret-key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "Hello, how are you?",
-    "channel": "api",
-    "user_id": "user123"
-  }'
+```python
+import os
+import requests
+
+session = requests.Session()
+session.post("http://localhost:8000/api/v1/auth/login", json={
+    "username": os.environ["OPERATOR_USERNAME"],
+    "password": os.environ["OPERATOR_LOGIN_PASSWORD"],
+}).raise_for_status()
+csrf = session.cookies["hub_csrf"]
+response = session.post("http://localhost:8000/api/v1/agents/chat", json={
+    "message": "Hello, how are you?", "channel": "api", "user_id": "user123"
+}, headers={"X-CSRF-Token": csrf})
+print(response.json())
 ```
 
 #### Get Message History
 
-```bash
-curl -X GET "http://localhost:8000/api/v1/messages?limit=10" \
-  -H "Authorization: Bearer your-secret-key"
+```python
+messages = session.get("http://localhost:8000/api/v1/messages?limit=10")
+print(messages.json())
 ```
 
 ### WebSocket Usage
 
-```javascript
-const ws = new WebSocket('ws://localhost:8000/ws');
-
-ws.onopen = () => {
-    ws.send(JSON.stringify({
-        type: "message",
-        message: "Hello from WebSocket!",
-        context: {}
-    }));
-};
-
-ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    console.log('Response:', data);
-};
-```
+The dashboard WebSocket uses the signed operator session cookie and validates the request origin. In production, enable secure cookies and connect over `wss://`.
 
 ### Integration Setup
 
@@ -160,12 +162,7 @@ curl http://localhost:8000/health
 
 ### Test API Endpoint
 
-```bash
-curl -X POST "http://localhost:8000/api/v1/agents/chat" \
-  -H "Authorization: Bearer your-secret-key" \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Test message", "channel": "api"}'
-```
+Use the authenticated `requests.Session` example above after setting the operator environment values.
 
 ## Troubleshooting
 
@@ -184,9 +181,9 @@ Initialize the database:
 python -c "from backend.core.database import init_db; import asyncio; asyncio.run(init_db())"
 ```
 
-### API Key Error
+### Operator sign-in error
 
-Make sure `API_SECRET_KEY` in `.env` matches the Bearer token in your requests.
+Make sure `OPERATOR_USERNAME`, a valid `OPERATOR_PASSWORD_HASH`, and `SESSION_SECRET_KEY` are set in `.env`. Generate the hash with `python -m backend.security.passwords`.
 
 ### Integration Not Working
 

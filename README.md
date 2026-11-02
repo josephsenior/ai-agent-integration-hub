@@ -1,11 +1,11 @@
-# 🔌 AI Agent Integration Hub
+#  AI Agent Integration Hub
 
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![LangChain](https://img.shields.io/badge/LangChain-0.1+-orange.svg)](https://www.langchain.com/)
 
-Production-ready platform that connects AI agents to external services and communication channels. Provides a unified API gateway, real-time WebSocket communication, and seamless integration with **Slack**, **Discord**, **Email**, **Webhooks**, and custom APIs. Built with FastAPI, LangChain, and Redis for scalable, event-driven agent orchestration.
+Portfolio project demonstrating an event gateway that connects an AI agent to external services. It includes a unified API, WebSocket support, and integrations for **Slack**, **Discord**, and signed **Webhooks**. Review the security and operational limits below before using it beyond a local demo.
 
 ## Features
 
@@ -34,7 +34,7 @@ Production-ready platform that connects AI agents to external services and commu
 ```
 ┌─────────────────┐
 │   Frontend UI   │
-│   (Streamlit)   │
+│   (Next.js)     │
 └────────┬────────┘
          │
 ┌────────▼─────────────────────────────────────┐
@@ -89,15 +89,22 @@ pip install -r requirements.txt
 3. **Set up environment variables**:
 ```bash
 cp env.example .env
-# Edit .env with your API keys and configuration
+# Edit .env with provider keys and configuration
 ```
 
-4. **Initialize database**:
+4. **Create an operator password hash**:
 ```bash
-python -m backend.core.database init
+python -m backend.security.passwords
 ```
+Copy the printed value to `OPERATOR_PASSWORD_HASH` in `.env`, and set `OPERATOR_USERNAME` and a unique `SESSION_SECRET_KEY`.
 
-5. **Start Redis** (if not running):
+5. **Apply database migrations**:
+```bash
+alembic upgrade head
+```
+Set `DATABASE_URL` before this command when using a database other than the local SQLite default. The API and worker still call `create_all` for convenient local development; run Alembic explicitly to track and upgrade deployed schemas.
+
+6. **Start Redis** (if not running):
 ```bash
 # macOS/Linux
 redis-server
@@ -106,15 +113,28 @@ redis-server
 docker run -d -p 6379:6379 redis:alpine
 ```
 
-6. **Run the API server**:
+7. **Run the API server**:
 ```bash
 uvicorn backend.api.main:app --reload --port 8000
 ```
 
-7. **Run the frontend** (in another terminal):
+8. **Run the event worker** in a second backend terminal:
 ```bash
-streamlit run frontend/app.py
+python -m backend.worker
 ```
+Signed provider webhooks are acknowledged after the event and its processing job are committed. The worker processes the message and retries failed processing or delivery.
+
+Authenticated operators can inspect durable processing and delivery attempts at `GET /api/v1/events`. It accepts optional `message_id`, `provider`, and `status` filters plus `limit` (1–200) and `offset`. The response omits stored payloads and includes status, attempt counts, timestamps, and the sanitized last error type.
+
+Sign in through the dashboard to use this endpoint; API clients must first establish an operator session with `/api/v1/auth/login` and send its cookies plus the CSRF header for writes.
+
+9. **Run the frontend**:
+   ```bash
+   cd frontend-nextjs
+   npm ci
+   npm run dev
+   ```
+   Open http://localhost:3000
 
 ## Usage
 
@@ -123,31 +143,41 @@ streamlit run frontend/app.py
 The API gateway provides a unified interface for all agent interactions:
 
 ```python
+import os
 import requests
 
-# Send message to agent via API
-response = requests.post(
+session = requests.Session()
+session.post(
+    "http://localhost:8000/api/v1/auth/login",
+    json={"username": os.environ["OPERATOR_USERNAME"], "password": os.environ["OPERATOR_LOGIN_PASSWORD"]},
+).raise_for_status()
+csrf = session.cookies["hub_csrf"]
+response = session.post(
     "http://localhost:8000/api/v1/agents/chat",
     json={
         "message": "What's the weather today?",
         "channel": "slack",
         "user_id": "user123"
     },
-    headers={"Authorization": "Bearer your-api-key"}
+    headers={"X-CSRF-Token": csrf},
 )
 ```
 
 ### WebSocket Connection
 
-Connect for real-time updates:
+The dashboard connects with its operator session cookie. The WebSocket endpoint checks both the signed session and the browser `Origin` against `CORS_ALLOWED_ORIGINS`; no shared token is sent by the browser.
 
 ```javascript
-const ws = new WebSocket('ws://localhost:8001/ws');
+const ws = new WebSocket('ws://localhost:8000/ws');
 ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
     console.log('Received:', data);
 };
 ```
+
+Browsers attach the same-site session cookie automatically. Configure `SESSION_COOKIE_SECURE=true` and use `wss://` when serving over HTTPS.
+
+Redis stores the shared failed-login counter and active session IDs. Five failed logins from one client address trigger a 15-minute throttle. Signing out revokes the session for HTTP and WebSocket requests across API workers. Authentication fails closed with HTTP 503 if Redis cannot serve this state.
 
 ### Integration Setup
 
@@ -161,8 +191,9 @@ ws.onmessage = (event) => {
 #### Discord Integration
 
 1. Create a Discord application at https://discord.com/developers/applications
-2. Add bot token to `.env`
+2. Add bot token and the application's public key (`DISCORD_PUBLIC_KEY`) to `.env`
 3. Invite bot to your server with appropriate permissions
+4. Configure the Interactions Endpoint URL; unsigned requests and stale signatures are rejected
 
 #### Email Integration
 
@@ -182,7 +213,7 @@ agent_integration_hub/
 │   ├── services/         # Business logic services
 │   ├── models/           # Data models
 │   └── utils/            # Utility functions
-├── frontend/             # Streamlit dashboard
+├── frontend-nextjs/      # Next.js frontend
 ├── tests/                # Test suite
 ├── data/                 # Database and data files
 ├── docs/                 # Documentation
@@ -240,7 +271,10 @@ See `env.example` for all configuration options. Key settings:
 
 - `DATABASE_URL`: Database connection string
 - `REDIS_URL`: Redis connection string
-- `API_SECRET_KEY`: Secret key for API authentication
+- `OPERATOR_USERNAME`, `OPERATOR_PASSWORD_HASH`: operator account name and PBKDF2 password hash
+- `SESSION_SECRET_KEY`: secret used to sign short-lived operator sessions
+- `SESSION_COOKIE_SECURE`: enable for HTTPS deployments
+- `CORS_ALLOWED_ORIGINS`: comma-separated trusted dashboard origins
 - Integration-specific credentials (Slack, Discord, Email)
 
 ## Development
@@ -258,7 +292,7 @@ black backend/ frontend/
 isort backend/ frontend/
 ```
 
-## 🛠️ Tech Stack
+##  Tech Stack
 
 - **Framework**: FastAPI (async Python web framework)
 - **Agent Framework**: LangChain (agent orchestration)
@@ -266,9 +300,9 @@ isort backend/ frontend/
 - **Database**: PostgreSQL/SQLite (persistence)
 - **Real-time**: WebSockets (bidirectional communication)
 - **Integrations**: Slack SDK, Discord.py, SMTP
-- **Frontend**: Streamlit (admin dashboard)
+- **Frontend**: Next.js 14 (React)
 
-## 📈 Use Cases
+##  Use Cases
 
 - **Multi-Channel Customer Support**: Deploy AI agents across Slack, Discord, Email
 - **Internal Team Bots**: Productivity bots for Slack/Discord workspaces
@@ -277,7 +311,7 @@ isort backend/ frontend/
 - **Integration Platform**: Build custom connectors for any API
 - **Real-Time Chat**: Live chat applications with WebSocket support
 
-## 🤝 Contributing
+##  Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
 
@@ -287,11 +321,11 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📝 License
+##  License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+##  Acknowledgments
 
 - [FastAPI](https://fastapi.tiangolo.com/) for the web framework
 - [LangChain](https://www.langchain.com/) for agent orchestration
