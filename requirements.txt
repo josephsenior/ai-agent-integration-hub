@@ -10,7 +10,7 @@ itsdangerous==2.2.0
 langchain==0.1.0
 # langchain-Gemini removed; use `langchain` and GooglePalm in code instead
 langchain-core==0.1.10
-google-genai==1.56.0
+google-genai==2.34.0
 
 # Database
 sqlalchemy==2.0.23
